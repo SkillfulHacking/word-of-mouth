@@ -9,6 +9,11 @@ import { chromium, type Page } from "playwright-core";
 const base = process.env.BASE ?? "http://localhost:3120";
 const password = process.env.ADMIN_PASSWORD ?? "";
 const out = path.join(process.cwd(), "docs", "screenshots");
+
+// Physical checks, run with print media on: the smallest QR in millimetres (96 CSS px = 25.4 mm), and anything that
+// runs past its card's edge (a printed line that gets cut off is a defect). A title may be clamped to 3 lines.
+const QR_MM_JS = `(function(){ var s=document.querySelectorAll(".ic-qrbox svg"), m=1e9; for(var i=0;i<s.length;i++){ m=Math.min(m, s[i].getBoundingClientRect().width/3.7795);} return m; })()`;
+const OVERFLOW_JS = `(function(){ var bad=[], c=document.querySelectorAll("article.invite-card"); for (var i=0;i<c.length;i++){ var card=c[i].getBoundingClientRect(); var kids=c[i].querySelectorAll(".ic-title,.ic-zip,.ic-how,.ic-qrbox,.ic-link,.ic-num"); for (var k=0;k<kids.length;k++){ var r=kids[k].getBoundingClientRect(); if (r.bottom>card.bottom+0.5||r.right>card.right+0.5||r.top<card.top-0.5||r.left<card.left-0.5) bad.push(kids[k].className+" "+Math.round(r.bottom-card.bottom)+"px"); } } return bad.join(", "); })()`;
 let fails = 0;
 const log = (ok: boolean, m: string) => { if (!ok) fails++; console.log(`${ok ? "PASS" : "FAIL"}  ${m}`); };
 const login = async (p: Page, u: string, pw: string) => { await p.goto(`${base}/login`); await p.fill("#username", u); await p.fill("#password", pw); await p.click("button:has-text('Sign in')"); await p.waitForURL(`${base}/`); };
@@ -44,6 +49,8 @@ await pat.waitForURL(/\/print\/invites\/.+\?batch=/);
 const batchUrl = pat.url();
 await pat.waitForSelector(".invite-card .ic-qrbox svg", { timeout: 20_000 });
 log((await pat.locator("article.invite-card").count()) === 10, "the print page shows 10 invite cards");
+await pat.fill("#base", "https://invites.example.org"); // screenshots should show a realistic public address
+await pat.waitForFunction(() => document.querySelector(".ic-link")?.textContent?.startsWith("invites.example.org"));
 await pat.screenshot({ path: path.join(out, "22-print-invites-4up.png"), fullPage: true });
 
 // ---- asking for more than the quota is refused, with the number they can still make
@@ -78,13 +85,16 @@ for (const paper of ["letter", "a4"] as const) {
     const pdf = await pat.pdf({ preferCSSPageSize: true, printBackground: true });
     const pages = pdfPages(pdf);
     const want = Math.ceil(10 / per);
+    // the printed size of the smallest QR code, in millimetres: under about 30 mm a phone struggles to read it
+    const qrMm = (await pat.evaluate(QR_MM_JS)) as number;
+    const overflow = (await pat.evaluate(OVERFLOW_JS)) as string;
     let decoded = 0, matched = 0;
     for (const code of codes) {
       const text = await decode(`article[data-code="${code}"] .ic-qrbox`);
       if (text) decoded++;
       if (text === `https://invites.example.org/i/${code}`) matched++;
     }
-    log(pages === want && decoded === 10 && matched === 10, `${paper.padEnd(6)} ${per}-up: ${pages} page(s) (want ${want}); QR codes read back ${decoded}/10, matching their invite link ${matched}/10`);
+    log(pages === want && decoded === 10 && matched === 10 && qrMm >= 30 && overflow === "", `${paper.padEnd(6)} ${per}-up: ${pages} page(s) (want ${want}); QR codes read back ${decoded}/10, matching their invite link ${matched}/10; smallest QR ${qrMm.toFixed(0)} mm (need 30+); overflow: ${overflow || "none"}`);
     await pat.emulateMedia({ media: "screen" });
     if (paper === "letter" && (per === 1 || per === 8)) await pat.screenshot({ path: path.join(out, `23-print-invites-${per}up.png`), fullPage: true });
   }
@@ -112,7 +122,9 @@ await admin.goto(`${base}/events/${eventId}`);
 log((await admin.locator("main").innerText()).includes("Farmers market flyers"), "the event page lists the batch");
 const g2 = await (await browser.newContext()).newPage();
 await g2.goto(`${base}${path0}`);
-await g2.fill("#username", "guestone"); await g2.fill("#password", "longenough1");
+// a unique name, so the script can be re-run on the same database
+await g2.fill("#username", `guest${Date.now()}`);
+await g2.fill("#password", "longenough1");
 await g2.click("button:has-text('Accept invitation')"); await g2.waitForURL(`${base}/tickets`);
 await pat.goto(batchUrl);
 await pat.waitForSelector(".invite-card");
@@ -121,6 +133,29 @@ const nums = await pat.locator(".ic-num").allInnerTexts();
 // codes[0] was invite 01 of 10 and is now used, so the reprint must be exactly 02..10, still numbered "of 10"
 const want = Array.from({ length: 9 }, (_, i) => `Invite ${String(i + 2).padStart(2, "0")} of 10 · single use`);
 log(JSON.stringify(nums.map((t) => t.trim())) === JSON.stringify(want), "the remaining cards keep their original numbers: exactly 02 to 10, each 'of 10'");
+
+// ---- a very long event name must not break any layout: no overflow, QR still big enough
+const longEv = await (await admin.request.post(`${base}/api/events`, { data: {
+  codename: "The Extraordinarily Long Midnight Masquerade of Hauntings", zip: "13204", theme: "wraith",
+  details: { title: "t", startsAt: "2026-10-31T19:00", venue: "v", address: "a", notes: "" },
+  threshold: 2, spots: [1, 2, 3].map((i) => ({ label: `p${i}`, clue: `clue ${i}` })),
+} })).json();
+log(typeof longEv.id === "string", `the long-named event was created (${longEv.error ?? "ok"})`);
+const longBatch = (await (await admin.request.post(`${base}/api/events/${longEv.id}/invites/batch`, { data: { count: 2, note: "long" } })).json()).batch;
+await admin.goto(`${base}/print/invites/${longEv.id}?batch=${longBatch}`);
+await admin.waitForSelector(".invite-card .ic-qrbox svg");
+for (const paper of ["letter", "a4"] as const) {
+  for (const per of [1, 2, 4, 8] as const) {
+    await admin.emulateMedia({ media: "screen" });
+    await admin.selectOption("#paper", paper);
+    await admin.selectOption("#persheet", String(per));
+    await admin.emulateMedia({ media: "print" });
+    await admin.waitForTimeout(150);
+    const mm = (await admin.evaluate(QR_MM_JS)) as number;
+    const over = (await admin.evaluate(OVERFLOW_JS)) as string;
+    log(mm >= 30 && over === "", `long event name, ${paper} ${per}-up: smallest QR ${mm.toFixed(0)} mm, overflow: ${over || "none"}`);
+  }
+}
 
 await browser.close();
 console.log(fails === 0 ? "\nALL CHECKS PASSED" : `\n${fails} CHECK(S) FAILED`);

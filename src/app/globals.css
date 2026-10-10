@@ -67,56 +67,57 @@ header.top button { padding: 6px 12px; }
 .theme-scope { background: var(--bg); color: var(--fg); }
 
 /* ---- Printable invite sheets (see print/invites). Sizes use the card's own width/height (cq units) so one
-   design works at 1, 2, 4 or 8 per sheet on Letter or A4. ---- */
+   design works at 1, 2, 4 or 8 per sheet on Letter or A4.
+   NOTE: cq units on the container's OWN properties (its padding, gap) resolve against the window, not the card.
+   So the card is a bare container and `.ic-inner` carries the padding; everything inside sizes against the card. ---- */
 .sheets { zoom: 0.7; margin-top: 16px; }
 .sheet { display: grid; background: #fff; margin: 0 auto 10mm; overflow: hidden; box-shadow: 0 1px 8px rgba(0, 0, 0, 0.25); break-after: page; }
 .sheet:last-child { break-after: auto; }
 .sheet, .sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.invite-card { container-type: size; box-sizing: border-box; position: relative; overflow: hidden; display: flex; background: var(--bg, #fff); color: var(--fg, #111); font-family: system-ui, sans-serif; }
+.invite-card { container-type: size; box-sizing: border-box; position: relative; overflow: hidden; background: var(--bg, #fff); color: var(--fg, #111); font-family: system-ui, sans-serif; }
 .invite-card.ink { background: #fff; color: #000; --accent: #000; --muted: #333; }
 .sheet.guides .invite-card { outline: 0.25mm dashed #9a9a9a; outline-offset: -0.25mm; }
+.ic-inner { box-sizing: border-box; width: 100%; height: 100%; display: flex; }
 .invite-card p, .invite-card h2 { margin: 0; }
 .invite-card .ic-title { font-weight: 800; line-height: 1.05; overflow-wrap: break-word; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
 .invite-card .ic-kicker { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 .invite-card .ic-zip, .invite-card .ic-how, .invite-card .ic-num { color: var(--muted, #444); }
 .invite-card .ic-msg { font-weight: 700; }
-.invite-card .ic-qrbox { background: #fff; line-height: 0; }
+.invite-card .ic-qrbox { background: #fff; line-height: 0; flex: none; }
 .invite-card .ic-qrbox svg { width: 100%; height: 100%; display: block; }
 .invite-card .ic-link { font-family: ui-monospace, monospace; color: var(--muted, #444); word-break: break-all; }
-.invite-card .ic-cover { object-fit: cover; display: block; flex: none; }
-
+.invite-card .ic-cover { object-fit: cover; display: block; flex: none; position: absolute; left: 0; top: 0; }
 /* an accent stripe gives the card a designed edge */
 .invite-card::before { content: ""; position: absolute; background: var(--accent, #000); z-index: 1; }
 
 /* portrait: the 1-up and 4-up cards */
-.invite-card.portrait { flex-direction: column; justify-content: space-between; padding: 7cqw 7cqw 6cqw; gap: 3cqw; }
+.portrait .ic-inner { flex-direction: column; justify-content: space-between; padding: 7cqw 7cqw 6cqw; gap: 3cqw; }
 .portrait::before { left: 0; right: 0; top: 0; height: 2.6cqw; }
-.portrait .ic-cover { position: absolute; left: 0; top: 0; width: 100%; height: 26cqw; max-width: none; }
+.portrait .ic-cover { width: 100%; height: 26cqw; }
 .portrait .ic-kicker { font-size: 3.9cqw; }
-.portrait .ic-title { font-size: 10.5cqw; margin-top: 1.5cqw; }
-.portrait .ic-zip { font-size: 4.8cqw; margin-top: 2cqw; font-weight: 600; }
-.portrait .ic-msg { font-size: 5cqw; margin-top: 2.5cqw; }
-.portrait .ic-how { font-size: 3.8cqw; margin-top: 2.5cqw; line-height: 1.3; }
-.portrait .ic-qr { display: flex; flex-direction: column; align-items: center; gap: 1.4cqw; }
-.portrait .ic-qrbox { width: min(56cqw, 40cqh); aspect-ratio: 1; padding: 3.2cqw; border-radius: 2.4cqw; box-sizing: content-box; }
-.portrait .ic-link { font-size: 2.5cqw; text-align: center; max-width: 100%; }
-.portrait .ic-num { font-size: 2.7cqw; text-align: center; }
-
+.portrait .ic-title { font-size: 8.8cqw; margin-top: 1.5cqw; }
+.portrait .ic-zip { font-size: 4.4cqw; margin-top: 2cqw; font-weight: 600; }
+.portrait .ic-msg { font-size: 4.6cqw; margin-top: 2.5cqw; }
+.portrait .ic-how { font-size: 3.4cqw; margin-top: 2cqw; line-height: 1.3; }
+.portrait .ic-qr { display: flex; flex-direction: column; align-items: center; gap: 1.4cqw; flex: none; }
+.portrait .ic-qrbox { width: 44cqw; aspect-ratio: 1; padding: 3cqw; border-radius: 2.4cqw; box-sizing: content-box; }
+.portrait .ic-link { font-size: 2.4cqw; text-align: center; max-width: 100%; }
+.portrait .ic-num { font-size: 2.6cqw; text-align: center; }
 /* with a picture the portrait card has less room, so everything is a little smaller */
-.portrait.has-cover { gap: 2cqw; padding-top: 33cqw; padding-bottom: 5cqw; }
-.portrait.has-cover .ic-cover { height: 29cqw; }
-.portrait.has-cover .ic-title { font-size: 8.6cqw; }
-.portrait.has-cover .ic-zip { font-size: 4.3cqw; margin-top: 1cqw; }
-.portrait.has-cover .ic-how { font-size: 3.1cqw; margin-top: 1.5cqw; }
-.portrait.has-cover .ic-qrbox { width: min(38cqw, 30cqh); padding: 2.6cqw; }
+.portrait.has-cover .ic-inner { gap: 1.5cqw; padding-top: 27cqw; padding-bottom: 4cqw; }
+.portrait.has-cover .ic-cover { height: 22cqw; }
+.portrait.has-cover .ic-title { font-size: 8.2cqw; }
+.portrait.has-cover .ic-zip { font-size: 4.2cqw; margin-top: 1cqw; }
+.portrait.has-cover .ic-how { font-size: 3.2cqw; margin-top: 1.5cqw; }
+.portrait.has-cover .ic-qrbox { width: 41cqw; padding: 2.4cqw; }
 .portrait.has-cover .ic-link { font-size: 2.2cqw; }
 .portrait.has-cover .ic-num { font-size: 2.4cqw; }
 
 /* landscape: the 2-up and 8-up cards. Text on the left, code on the right. */
-.invite-card.landscape { flex-direction: row; align-items: center; padding: 4.5cqw 4.5cqw 4.5cqw 6cqw; gap: 3cqw; }
+.landscape .ic-inner { flex-direction: row; align-items: center; padding: 4.5cqw 4.5cqw 4.5cqw 6cqw; gap: 3cqw; }
 .landscape::before { left: 0; top: 0; bottom: 0; width: 1.8cqw; }
-.landscape .ic-cover { position: absolute; left: 0; top: 0; bottom: 0; width: 22cqw; height: 100%; }
-.landscape .ic-cover + .ic-text { margin-left: 19cqw; }
+.landscape .ic-cover { width: 22cqw; height: 100%; }
+.landscape.has-cover .ic-inner { padding-left: 25cqw; }
 .landscape .ic-text { flex: 1; min-width: 0; }
 .landscape .ic-kicker { font-size: 2.8cqw; }
 .landscape .ic-title { font-size: 5.6cqw; margin-top: 0.8cqw; }
@@ -124,7 +125,7 @@ header.top button { padding: 6px 12px; }
 .landscape .ic-msg { font-size: 3.3cqw; margin-top: 1.4cqw; }
 .landscape .ic-how { font-size: 2.55cqw; margin-top: 1.6cqw; line-height: 1.3; }
 .landscape .ic-qr { display: flex; flex-direction: column; align-items: center; gap: 0.9cqw; flex: none; }
-.landscape .ic-qrbox { width: min(31cqw, 58cqh); aspect-ratio: 1; padding: 2cqw; border-radius: 1.5cqw; box-sizing: content-box; }
+.landscape .ic-qrbox { width: 31cqw; aspect-ratio: 1; padding: 2cqw; border-radius: 1.5cqw; box-sizing: content-box; }
 .landscape .ic-link { font-size: 1.55cqw; text-align: center; max-width: 37cqw; overflow-wrap: anywhere; }
 .landscape .ic-num { font-size: 1.7cqw; text-align: center; }
 

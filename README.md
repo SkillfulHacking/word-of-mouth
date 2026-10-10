@@ -6,7 +6,21 @@ An organizer seals the *when and where* of an event. The key is split across a f
 
 Everything runs on your own machine: a self-hosted web app, a local open-weight language model through [Ollama](https://ollama.com), your own [ComfyUI](https://github.com/comfyanonymous/ComfyUI) for pictures, and open map data. No accounts with anyone, no API keys.
 
-![The door screen](docs/screenshots/18-door-screen.png)
+<table>
+  <tr>
+    <td align="center" valign="top"><img src="docs/readme/guest-hunt.jpg" width="230" alt="A guest's phone showing an event page in a purple theme with a painted pumpkin-field picture, the codename, a ZIP code, and three clues; the location is hidden"><br><sub><b>Find it.</b> A guest sees the event's theme and artwork, a ZIP code and clues. Nothing else.</sub></td>
+    <td align="center" valign="top"><img src="docs/readme/guest-unlocked.png" width="230" alt="A guest's phone showing the event's title, date, venue, address and notes after two hidden codes were scanned"><br><sub><b>Unlock it.</b> Find enough hidden codes and the details decrypt on the phone.</sub></td>
+    <td align="center" valign="top"><img src="docs/readme/guest-checked-in.png" width="230" alt="A guest's phone showing a large green check mark and the words You're in"><br><sub><b>Get in.</b> At the door the phone proves it's on the guest list, once.</sub></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td align="center" valign="top"><img src="docs/readme/studio.jpg" width="280" alt="The image studio: a prompt written by the local model, and two candidate pictures of glowing pumpkins in a forest painted by ComfyUI"><br><sub><b>Make it yours.</b> Your local model writes the prompt, ComfyUI paints candidates, you choose one.</sub></td>
+    <td align="center" valign="top"><img src="docs/readme/print-sheet.jpg" width="280" alt="A letter-size sheet of four invite cards, each with a picture banner, the event name, a large unique QR code and an invite number"><br><sub><b>Print it.</b> Unique single-use invites, 1, 2, 4 or 8 to a sheet.</sub></td>
+    <td align="center" valign="top"><img src="docs/readme/door.png" width="280" alt="The door screen: a large QR code that changes after every guest, and a count of tickets checked in"><br><sub><b>Run the door.</b> A one-time QR that changes after every guest.</sub></td>
+  </tr>
+</table>
 
 ## What it does
 
@@ -57,7 +71,7 @@ WOM_ADMIN_PASSWORD='a long password' pnpm dev   # creates the first admin on fir
 | `pnpm typecheck` | TypeScript |
 | `pnpm screenshots` | Drives the running app in headless Chrome and saves screenshots to `docs/screenshots` |
 | `pnpm tsx scripts/e2e-door.mts` | Real-browser test of the whole door flow (set `BASE` and `ADMIN_PASSWORD`) |
-| `pnpm tsx scripts/e2e-print.mts` | Makes a batch of invites, renders every paper and layout, and reads each QR code back out of the rendered pixels |
+| `pnpm tsx scripts/e2e-print.mts` | Makes a batch of invites, renders every paper and layout, reads each QR code back out of the rendered pixels, measures its printed size in millimetres (it must be 30 mm or more), and checks that nothing runs past a card's edge, including with a very long event name |
 | `pnpm tsx scripts/e2e-images.mts` | Needs real Ollama and ComfyUI: writes a prompt, paints pictures, and checks the privacy rules and the printed cards |
 
 ## Configuration

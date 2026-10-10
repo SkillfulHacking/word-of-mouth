@@ -174,19 +174,21 @@ export function InviteSheet({ event, invites, defaultBase, batch, coverUrl }: { 
                   // eslint-disable-next-line @next/next/no-img-element
                   <img className="ic-cover" src={coverUrl} alt="" />
                 )}
-                <div className="ic-text">
-                  <p className="ic-kicker">You&apos;re invited</p>
-                  <h2 className="ic-title">{event.codename}</h2>
-                  <p className="ic-zip">Somewhere in ZIP code {event.zip}</p>
-                  {message && <p className="ic-msg">{message}</p>}
-                  <p className="ic-how">Scan the code with your phone&apos;s camera to accept. Then find the hidden codes to learn where and when.</p>
-                </div>
-                <div className="ic-qr">
-                  <div className="ic-qrbox" role="img" aria-label={`QR code for invite ${inv.n}`} dangerouslySetInnerHTML={{ __html: svgs[inv.code] ?? "" }} />
-                  <p className="ic-link">{urlFor(inv.code).replace(/^https?:\/\//, "")}</p>
-                  <p className="ic-num">
-                    Invite {pad(inv.n, inv.of)} of {inv.of} · single use
-                  </p>
+                <div className="ic-inner">
+                  <div className="ic-text">
+                    <p className="ic-kicker">You&apos;re invited</p>
+                    <h2 className="ic-title">{event.codename}</h2>
+                    <p className="ic-zip">Somewhere in ZIP code {event.zip}</p>
+                    {message && <p className="ic-msg">{message}</p>}
+                    <p className="ic-how">Scan the code with your phone&apos;s camera to accept. Then find the hidden codes to learn where and when.</p>
+                  </div>
+                  <div className="ic-qr">
+                    <div className="ic-qrbox" role="img" aria-label={`QR code for invite ${inv.n}`} dangerouslySetInnerHTML={{ __html: svgs[inv.code] ?? "" }} />
+                    <p className="ic-link">{urlFor(inv.code).replace(/^https?:\/\//, "")}</p>
+                    <p className="ic-num">
+                      Invite {pad(inv.n, inv.of)} of {inv.of} · single use
+                    </p>
+                  </div>
                 </div>
               </article>
             ))}

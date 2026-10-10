@@ -10,6 +10,11 @@ import { chromium } from "playwright-core";
 const base = process.env.BASE ?? "http://localhost:3121";
 const password = process.env.ADMIN_PASSWORD ?? "";
 const out = path.join(process.cwd(), "docs", "screenshots");
+
+// Physical checks, run with print media on: the smallest QR in millimetres (96 CSS px = 25.4 mm), and anything that
+// runs past its card's edge (a printed line that gets cut off is a defect). A title may be clamped to 3 lines.
+const QR_MM_JS = `(function(){ var s=document.querySelectorAll(".ic-qrbox svg"), m=1e9; for(var i=0;i<s.length;i++){ m=Math.min(m, s[i].getBoundingClientRect().width/3.7795);} return m; })()`;
+const OVERFLOW_JS = `(function(){ var bad=[], c=document.querySelectorAll("article.invite-card"); for (var i=0;i<c.length;i++){ var card=c[i].getBoundingClientRect(); var kids=c[i].querySelectorAll(".ic-title,.ic-zip,.ic-how,.ic-qrbox,.ic-link,.ic-num"); for (var k=0;k<kids.length;k++){ var r=kids[k].getBoundingClientRect(); if (r.bottom>card.bottom+0.5||r.right>card.right+0.5||r.top<card.top-0.5||r.left<card.left-0.5) bad.push(kids[k].className+" "+Math.round(r.bottom-card.bottom)+"px"); } } return bad.join(", "); })()`;
 let fails = 0;
 const log = (ok: boolean, m: string) => { if (!ok) fails++; console.log(`${ok ? "PASS" : "FAIL"}  ${m}`); };
 
@@ -89,6 +94,8 @@ await admin.goto(`${base}/print/invites/${id}?batch=${bulk.batch}`);
 await admin.waitForSelector(".invite-card .ic-qrbox svg");
 await admin.waitForFunction(() => [...document.images].every((i) => i.complete));
 log((await admin.locator(".invite-card img.ic-cover").count()) === 4, "all 4 printed cards carry the picture");
+// screenshots should show a realistic public address, not localhost
+await admin.fill("#base", "https://invites.example.org");
 // the picture must never get in the way of the QR code: read every code back in each layout, with the picture present
 const cardCodes = await admin.locator("article.invite-card").evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.code!));
 // Real printing is about 300 dpi, roughly 3x a screen's CSS pixels, so read the codes back at that density.
@@ -108,7 +115,9 @@ for (const per of ["1", "2", "4", "8"]) {
     const r = jsQR(new Uint8ClampedArray(png.data), png.width, png.height);
     if (r?.data.endsWith(`/i/${code}`)) ok++;
   }
-  log(ok === cardCodes.length, `${per}-up with the picture, at print density: ${ok}/${cardCodes.length} QR codes read back correctly`);
+  const qrMm = (await hi.evaluate(QR_MM_JS)) as number;
+  const overflow = (await hi.evaluate(OVERFLOW_JS)) as string;
+  log(ok === cardCodes.length && qrMm >= 30 && overflow === "", `${per}-up with the picture: ${ok}/${cardCodes.length} QR codes read back at print density; smallest QR ${qrMm.toFixed(0)} mm (need 30+); overflow: ${overflow || "none"}`);
 }
 await hiCtx.close();
 await admin.selectOption("#persheet", "4");
