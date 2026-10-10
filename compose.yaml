@@ -11,6 +11,11 @@ services:
       # Your Ollama server. host.docker.internal reaches Ollama running on this machine; use a LAN address otherwise.
       OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b-instruct-2507-q4_K_M}
+      # Your ComfyUI, for event pictures.
+      COMFYUI_URL: ${COMFYUI_URL:-http://host.docker.internal:8188}
+      COMFYUI_CHECKPOINT: ${COMFYUI_CHECKPOINT:-}
+      # The address guests will use, so printed invites point at the right place.
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
       WOM_ADMIN_USER: ${WOM_ADMIN_USER:-admin}
       WOM_ADMIN_PASSWORD: ${WOM_ADMIN_PASSWORD:-}
       # Set to true once you serve it over HTTPS (needed for NFC writing from a phone).

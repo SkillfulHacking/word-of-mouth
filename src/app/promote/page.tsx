@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { quotaFor } from "@/lib/invites";
 import { InviteList, type InviteRow } from "@/components/invite-list";
 import { MintForm } from "@/components/mint-form";
+import { BulkInviteForm } from "@/components/bulk-invite-form";
+import { BatchList, type BatchRow } from "@/components/batch-list";
 
 export const dynamic = "force-dynamic";
 
@@ -42,10 +44,18 @@ export default async function PromotePage() {
             .prepare(
               `SELECT i.code, i.note, ru.username AS redeemedBy
                FROM invites i LEFT JOIN users ru ON ru.id = i.redeemed_by
-               WHERE i.event_id = ? AND i.created_by = ? ORDER BY i.created_at DESC`,
+               WHERE i.event_id = ? AND i.created_by = ? AND i.batch IS NULL ORDER BY i.created_at DESC`,
             )
             .all(ev.id, user.id) as { code: string; note: string; redeemedBy: string | null }[]
         ).map((i): InviteRow => ({ ...i, canRevoke: true }));
+
+        const batches = db
+          .prepare(
+            `SELECT batch, MAX(note) AS note, COUNT(*) AS total, SUM(redeemed_by IS NULL) AS open
+             FROM invites WHERE event_id = ? AND created_by = ? AND batch IS NOT NULL
+             GROUP BY batch ORDER BY MIN(created_at) DESC, MIN(rowid) DESC LIMIT 10`,
+          )
+          .all(ev.id, user.id) as BatchRow[];
 
         return (
           <section key={ev.id}>
@@ -69,6 +79,12 @@ export default async function PromotePage() {
               <MintForm eventId={ev.id} disabled={limited && left <= 0} />
             </div>
             <InviteList invites={mine} />
+
+            <h3 style={{ margin: "16px 0 4px" }}>Print a batch</h3>
+            <div className="card">
+              <BulkInviteForm eventId={ev.id} max={limited ? Math.max(0, left) : null} />
+            </div>
+            <BatchList eventId={ev.id} batches={batches} />
           </section>
         );
       })}

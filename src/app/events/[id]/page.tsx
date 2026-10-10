@@ -5,7 +5,11 @@ import { db } from "@/lib/db";
 import { canManageEvent } from "@/lib/invites";
 import { InviteList, type InviteRow } from "@/components/invite-list";
 import { MintForm } from "@/components/mint-form";
+import { BulkInviteForm } from "@/components/bulk-invite-form";
+import { BatchList, type BatchRow } from "@/components/batch-list";
 import { AssignPromoterForm, RemovePromoterButton } from "./assign-promoter-form";
+import { ImageStudio } from "./image-studio";
+import { LookAndFeel } from "./look-and-feel";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +17,8 @@ export default async function ManageEventPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const user = await currentUser();
   if (!user) redirect("/login");
-  const event = db.prepare("SELECT id, coordinator_id, codename, zip, threshold FROM events WHERE id = ?").get(id) as
-    | { id: string; coordinator_id: number; codename: string; zip: string; threshold: number }
+  const event = db.prepare("SELECT id, coordinator_id, codename, zip, threshold, theme FROM events WHERE id = ?").get(id) as
+    | { id: string; coordinator_id: number; codename: string; zip: string; threshold: number; theme: string }
     | undefined;
   if (!event || !canManageEvent(user, event)) notFound();
 
@@ -31,10 +35,17 @@ export default async function ManageEventPage({ params }: { params: Promise<{ id
       .prepare(
         `SELECT i.code, i.note, cu.username AS by, ru.username AS redeemedBy
          FROM invites i JOIN users cu ON cu.id = i.created_by LEFT JOIN users ru ON ru.id = i.redeemed_by
-         WHERE i.event_id = ? ORDER BY i.created_at DESC`,
+         WHERE i.event_id = ? AND i.batch IS NULL ORDER BY i.created_at DESC`,
       )
       .all(id) as { code: string; note: string; by: string; redeemedBy: string | null }[]
   ).map((i): InviteRow => ({ ...i, canRevoke: true }));
+  const batches = db
+    .prepare(
+      `SELECT i.batch, MAX(i.note) AS note, COUNT(*) AS total, SUM(i.redeemed_by IS NULL) AS open, MAX(cu.username) AS by
+       FROM invites i JOIN users cu ON cu.id = i.created_by
+       WHERE i.event_id = ? AND i.batch IS NOT NULL GROUP BY i.batch ORDER BY MIN(i.created_at) DESC, MIN(i.rowid) DESC LIMIT 20`,
+    )
+    .all(id) as BatchRow[];
   const tickets = db
     .prepare("SELECT t.id, u.username FROM tickets t JOIN users u ON u.id = t.user_id WHERE t.event_id = ? ORDER BY t.created_at")
     .all(id) as { id: string; username: string }[];
@@ -54,6 +65,12 @@ export default async function ManageEventPage({ params }: { params: Promise<{ id
           Open the door
         </Link>
       </p>
+
+      <h2>Look and feel</h2>
+      <LookAndFeel eventId={id} initial={event.theme} />
+
+      <h2>Event image</h2>
+      <ImageStudio eventId={id} />
 
       <h2>Promoters</h2>
       <p className="muted">A promoter can send this many single-use invites. You can always send invites yourself, with no limit.</p>
@@ -90,6 +107,15 @@ export default async function ManageEventPage({ params }: { params: Promise<{ id
         <MintForm eventId={id} />
       </div>
       <InviteList invites={invites} />
+
+      <h3 style={{ margin: "16px 0 4px" }}>Print a batch</h3>
+      <div className="card">
+        <BulkInviteForm eventId={id} max={null} />
+      </div>
+      <BatchList eventId={id} batches={batches} />
+      <p>
+        <Link href={`/print/invites/${id}`}>Print every unused invite</Link>
+      </p>
 
       <h2>Tickets ({tickets.length})</h2>
       {tickets.length === 0 ? (

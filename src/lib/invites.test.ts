@@ -75,7 +75,7 @@ describe("redeeming", () => {
   it("shows a stranger only the codename and ZIP, and nothing once the invite is used or bogus", () => {
     const e = mkEvent(coord);
     const { code } = inv.mintInvite(coord, e, "") as { ok: true; code: string };
-    expect(inv.inviteView(code)).toEqual({ state: "open", eventId: e, codename: "Op Test", zip: "13204" });
+    expect(inv.inviteView(code)).toEqual({ state: "open", eventId: e, codename: "Op Test", zip: "13204", theme: "default" });
     expect(inv.redeemInvite(code, attendee.id).ok).toBe(true);
     expect(inv.inviteView(code)).toEqual({ state: "unavailable" });
     expect(inv.inviteView("nope")).toEqual({ state: "unavailable" });
@@ -137,5 +137,89 @@ describe("signing up through an invite", () => {
     } finally {
       db.exec("DROP TRIGGER lose_race");
     }
+  });
+});
+
+describe("bulk invites", () => {
+  it("creates exactly as many unique single-use invites as asked, in one run", () => {
+    const e = mkEvent(coord);
+    const r = inv.mintBatch(coord, e, 25, "Flyers") as { ok: true; batch: string; codes: string[] };
+    expect(r.ok).toBe(true);
+    expect(r.codes).toHaveLength(25);
+    expect(new Set(r.codes).size).toBe(25);
+    expect((db.prepare("SELECT COUNT(*) AS n FROM invites WHERE batch = ?").get(r.batch) as { n: number }).n).toBe(25);
+    for (const code of r.codes) expect(inv.inviteView(code).state).toBe("open");
+  });
+  it("is all-or-nothing against a promoter's quota", () => {
+    const e = mkEvent(coord);
+    inv.setPromoterQuota(coord, e, promoter.id, 10);
+    expect(inv.mintBatch(promoter, e, 11, "")).toMatchObject({ ok: false, status: 409, error: expect.stringContaining("10 more") });
+    expect((db.prepare("SELECT COUNT(*) AS n FROM invites WHERE event_id = ?").get(e) as { n: number }).n).toBe(0); // nothing was created
+    expect(inv.mintBatch(promoter, e, 6, "").ok).toBe(true);
+    expect(inv.mintBatch(promoter, e, 5, "")).toMatchObject({ ok: false, status: 409, error: expect.stringContaining("4 more") });
+    expect(inv.mintBatch(promoter, e, 4, "").ok).toBe(true);
+    expect(inv.mintBatch(promoter, e, 1, "")).toMatchObject({ ok: false, status: 409, error: expect.stringContaining("used all 10") });
+  });
+  it("counts bulk invites toward the quota like any other, and revoking frees them", () => {
+    const e = mkEvent(coord);
+    inv.setPromoterQuota(coord, e, promoter.id, 3);
+    const r = inv.mintBatch(promoter, e, 3, "") as { ok: true; codes: string[] };
+    expect(inv.mintInvite(promoter, e, "")).toMatchObject({ ok: false, status: 409 });
+    inv.revokeInvite(promoter, r.codes[0]);
+    expect(inv.mintInvite(promoter, e, "").ok).toBe(true);
+  });
+  it("rejects bad sizes, unassigned promoters, attendees and other coordinators", () => {
+    const e = mkEvent(coord);
+    for (const bad of [0, -1, 1.5, 201, Number.NaN]) expect(inv.mintBatch(coord, e, bad, ""), String(bad)).toMatchObject({ ok: false, status: 400 });
+    expect(inv.mintBatch(coord, e, 200, "").ok).toBe(true); // the cap itself is allowed
+    expect(inv.mintBatch(promoter2, e, 5, "")).toMatchObject({ ok: false, status: 403 });
+    expect(inv.mintBatch(attendee, e, 5, "")).toMatchObject({ ok: false, status: 403 });
+    expect(inv.mintBatch(otherCoord, e, 5, "")).toMatchObject({ ok: false, status: 403 });
+    expect(inv.mintBatch(admin, e, 5, "").ok).toBe(true);
+    expect(inv.mintBatch(coord, "nope", 5, "")).toMatchObject({ ok: false, status: 404 });
+  });
+});
+
+describe("printing invites", () => {
+  it("shows a promoter only their own unused invites, numbered n of N within the run", () => {
+    const e = mkEvent(coord);
+    inv.setPromoterQuota(coord, e, promoter.id, 20);
+    inv.setPromoterQuota(coord, e, promoter2.id, 20);
+    const mine = inv.mintBatch(promoter, e, 5, "Mine") as { ok: true; batch: string; codes: string[] };
+    inv.mintBatch(promoter2, e, 4, "Theirs");
+    const d = inv.printData(promoter, e) as { ok: true; invites: { code: string; n: number; of: number }[] };
+    expect(d.invites.map((i) => i.code)).toEqual(mine.codes);
+    expect(d.invites.map((i) => `${i.n}/${i.of}`)).toEqual(["1/5", "2/5", "3/5", "4/5", "5/5"]);
+  });
+  it("leaves out used invites but keeps the original numbering on a reprint", () => {
+    const e = mkEvent(coord);
+    const r = inv.mintBatch(coord, e, 4, "") as { ok: true; batch: string; codes: string[] };
+    inv.redeemInvite(r.codes[1], mkUser("attendee").id);
+    const d = inv.printData(coord, e, r.batch) as { ok: true; invites: { code: string; n: number; of: number }[] };
+    expect(d.invites.map((i) => `${i.n}/${i.of}`)).toEqual(["1/4", "3/4", "4/4"]);
+    expect(d.invites.map((i) => i.code)).not.toContain(r.codes[1]);
+  });
+  it("lets the coordinator and admins see everyone's, filtered by run", () => {
+    const e = mkEvent(coord);
+    inv.setPromoterQuota(coord, e, promoter.id, 20);
+    const a = inv.mintBatch(promoter, e, 3, "") as { ok: true; batch: string };
+    const b = inv.mintBatch(coord, e, 2, "") as { ok: true; batch: string };
+    expect((inv.printData(coord, e) as { invites: unknown[] }).invites).toHaveLength(5);
+    expect((inv.printData(admin, e) as { invites: unknown[] }).invites).toHaveLength(5);
+    expect((inv.printData(coord, e, a.batch) as { invites: unknown[] }).invites).toHaveLength(3);
+    expect((inv.printData(coord, e, b.batch) as { invites: unknown[] }).invites).toHaveLength(2);
+    expect((inv.printData(coord, e, "unknown") as { invites: unknown[] }).invites).toHaveLength(0);
+  });
+  it("refuses people with no business printing this event's invites", () => {
+    const e = mkEvent(coord);
+    inv.mintBatch(coord, e, 2, "");
+    for (const who of [promoter2, attendee, otherCoord]) expect(inv.printData(who, e), who.username).toMatchObject({ ok: false, status: 403 });
+    expect(inv.printData(coord, "nope")).toMatchObject({ ok: false, status: 404 });
+  });
+  it("carries the event's public face and nothing secret", () => {
+    const e = mkEvent(coord);
+    inv.mintBatch(coord, e, 1, "");
+    const d = inv.printData(coord, e) as { event: Record<string, unknown> };
+    expect(Object.keys(d.event).sort()).toEqual(["codename", "id", "theme", "zip"]);
   });
 });

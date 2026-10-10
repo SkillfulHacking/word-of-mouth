@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
+import { ThemeScope } from "@/components/theme-scope";
 import { db } from "@/lib/db";
+import { coverId } from "@/lib/event-images";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +13,7 @@ export default async function TicketsPage() {
 
   const tickets = db
     .prepare(
-      `SELECT t.id, t.event_id AS eventId, e.codename, e.zip, cu.username AS invitedBy,
+      `SELECT t.id, t.event_id AS eventId, e.codename, e.zip, e.theme, cu.username AS invitedBy,
               EXISTS (SELECT 1 FROM door_passes dp WHERE dp.ticket_id = t.id) AS hasPass
        FROM tickets t
        JOIN events e ON e.id = t.event_id
@@ -19,14 +21,19 @@ export default async function TicketsPage() {
        JOIN users cu ON cu.id = i.created_by
        WHERE t.user_id = ? ORDER BY t.created_at DESC`,
     )
-    .all(user.id) as { id: string; eventId: string; codename: string; zip: string; invitedBy: string; hasPass: number }[];
+    .all(user.id) as { id: string; eventId: string; codename: string; zip: string; theme: string; invitedBy: string; hasPass: number }[];
 
   return (
     <>
       <h1>Your tickets</h1>
       {tickets.length === 0 && <p className="muted">You don&apos;t have any tickets yet. They arrive as invite links from people who want you there.</p>}
       {tickets.map((t) => (
-        <div className="card" key={t.id}>
+        <ThemeScope theme={t.theme} key={t.id} style={{ padding: 12, borderRadius: 16, margin: "12px 0" }}>
+        <div className="card" style={{ margin: 0 }}>
+          {coverId(t.eventId) && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="cover" src={`/api/images/${coverId(t.eventId)}?v=web`} alt="" style={{ marginBottom: 12 }} />
+          )}
           <div className="row" style={{ justifyContent: "space-between" }}>
             <h2 style={{ margin: 0 }}>{t.codename}</h2>
             <span className="pill" style={{ flex: "none" }}>
@@ -54,6 +61,7 @@ export default async function TicketsPage() {
             Your ticket doesn&apos;t say where the party is. <Link href={`/e/${t.eventId}`}>Start the hunt</Link> and find the hidden codes.
           </p>
         </div>
+        </ThemeScope>
       ))}
     </>
   );

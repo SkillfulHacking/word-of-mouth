@@ -1,5 +1,7 @@
 import { currentUser } from "@/lib/auth";
+import { coverId } from "@/lib/event-images";
 import { inviteView } from "@/lib/invites";
+import { ThemeStyle } from "@/components/theme-style";
 import { AcceptForm } from "./accept-form";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +21,14 @@ export default async function InvitePage({ params }: { params: Promise<{ code: s
   }
 
   const user = await currentUser();
+  const cover = coverId(view.eventId);
   return (
     <>
+      <ThemeStyle theme={view.theme} />
+      {cover && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="cover" src={`/api/images/${cover}?v=web`} alt="" />
+      )}
       <h1>You&apos;re invited</h1>
       <div className="card">
         <h2 style={{ marginTop: 0 }}>{view.codename}</h2>

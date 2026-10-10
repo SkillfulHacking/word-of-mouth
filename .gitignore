@@ -11,3 +11,6 @@ public/zk
 
 # unfinished write-up draft: stays local until published
 docs/devto-post.md
+
+# redacted agent-session files: for review and upload to DEV only, never commit
+session-upload/

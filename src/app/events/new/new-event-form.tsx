@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { OsmCredit } from "@/components/osm-credit";
+import { ThemePicker } from "@/components/theme-picker";
 import { MAX_SPOTS } from "@/lib/limits";
 
 // lat/lon are strings while editing so a half-typed number doesn't fight the user.
@@ -42,6 +43,7 @@ export function NewEventForm() {
   const formRef = useRef<HTMLFormElement>(null);
   const [spots, setSpots] = useState<Spot[]>([blank(), blank(), blank()]);
   const [threshold, setThreshold] = useState(2);
+  const [eventTheme, setEventTheme] = useState("default"); // the look of the event pages (not the AI clue theme below)
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -157,6 +159,7 @@ export function NewEventForm() {
           notes: f.get("notes"),
         },
         threshold,
+        theme: eventTheme,
         spots: payload,
       }),
     });
@@ -203,6 +206,12 @@ export function NewEventForm() {
         <input id="address" name="address" />
         <label htmlFor="notes">Notes for guests</label>
         <textarea id="notes" name="notes" rows={3} />
+      </div>
+
+      <div className="card">
+        <h2 style={{ marginTop: 0 }}>Look and feel</h2>
+        <p className="muted">Colors for this event&apos;s invite, hunt, unlock and ticket pages, and the printed invites. You can change it later.</p>
+        <ThemePicker value={eventTheme} onChange={setEventTheme} />
       </div>
 
       <div className="card">

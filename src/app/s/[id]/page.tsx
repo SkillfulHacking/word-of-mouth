@@ -2,9 +2,10 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ThemeStyle } from "@/components/theme-style";
 import { unlockDetails, type EventDetails } from "@/lib/client-crypto";
 
-type Meta = { codename: string; zip: string; blob: string; threshold: number; spots: { idx: number; clue: string }[] };
+type Meta = { codename: string; zip: string; theme: string; cover: string | null; blob: string; threshold: number; spots: { idx: number; clue: string }[] };
 
 export default function ShardPage() {
   const { id } = useParams<{ id: string }>();
@@ -65,6 +66,11 @@ export default function ShardPage() {
   const count = Object.keys(found).length;
   return (
     <>
+      <ThemeStyle theme={meta.theme} />
+      {meta.cover && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="cover" src={`/api/images/${meta.cover}?v=web`} alt="" />
+      )}
       <h1>{meta.codename}</h1>
       {details ? (
         <div className="card">

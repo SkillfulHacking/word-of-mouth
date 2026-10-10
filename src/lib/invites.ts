@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { db, type User } from "./db";
+import { MAX_BATCH } from "./limits";
 
 export type Fail = { ok: false; status: number; error: string };
 const fail = (status: number, error: string): Fail => ({ ok: false, status, error });
@@ -68,13 +69,13 @@ export function revokeInvite(actor: User, code: string): { ok: true } | Fail {
   return { ok: true };
 }
 
-export type InviteView = { state: "open"; eventId: string; codename: string; zip: string } | { state: "unavailable" };
+export type InviteView = { state: "open"; eventId: string; codename: string; zip: string; theme: string } | { state: "unavailable" };
 
 /** What an invite link may show a stranger. A used or unknown code reveals nothing about any event. */
 export function inviteView(code: string): InviteView {
   const row = db
-    .prepare("SELECT e.id AS eventId, e.codename, e.zip FROM invites i JOIN events e ON e.id = i.event_id WHERE i.code = ? AND i.redeemed_by IS NULL")
-    .get(code) as { eventId: string; codename: string; zip: string } | undefined;
+    .prepare("SELECT e.id AS eventId, e.codename, e.zip, e.theme FROM invites i JOIN events e ON e.id = i.event_id WHERE i.code = ? AND i.redeemed_by IS NULL")
+    .get(code) as { eventId: string; codename: string; zip: string; theme: string } | undefined;
   return row ? { state: "open", ...row } : { state: "unavailable" };
 }
 
@@ -121,4 +122,79 @@ export function signUpAndRedeem(code: string, username: string, passHash: string
     if (e instanceof Error && "fail" in e) return (e as Error & { fail: Fail }).fail;
     throw e;
   }
+}
+
+// ---- bulk invites, for printing --------------------------------------------------------------
+
+export type BatchResult = { ok: true; batch: string; codes: string[] } | Fail;
+
+/**
+ * Create `count` single-use invites at once (for a print run). All or nothing: a promoter who asks for more
+ * than their remaining quota gets nothing, and is told how many they can still make.
+ */
+export function mintBatch(actor: User, eventId: string, count: number, note: string): BatchResult {
+  if (!Number.isInteger(count) || count < 1 || count > MAX_BATCH) return fail(400, `Choose between 1 and ${MAX_BATCH} invites.`);
+  return db.transaction((): BatchResult => {
+    const event = getEvent(eventId);
+    if (!event) return fail(404, "No such event.");
+    if (!canManageEvent(actor, event)) {
+      if (actor.role !== "promoter") return fail(403, "Your role can't create invites.");
+      const { quota, used } = quotaFor(eventId, actor.id);
+      if (quota === 0) return fail(403, "You haven't been assigned to promote this event.");
+      const left = quota - used;
+      if (count > left) {
+        return fail(409, left <= 0 ? `You've used all ${quota} of your invites for this event.` : `You can create ${left} more invite${left === 1 ? "" : "s"} for this event, and you asked for ${count}.`);
+      }
+    }
+    const batch = randomBytes(5).toString("base64url");
+    const insert = db.prepare("INSERT INTO invites (code, event_id, created_by, note, batch) VALUES (?, ?, ?, ?, ?)");
+    const codes: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const code = randomBytes(9).toString("base64url");
+      insert.run(code, eventId, actor.id, note.trim(), batch);
+      codes.push(code);
+    }
+    return { ok: true, batch, codes };
+  })();
+}
+
+export type PrintInvite = { code: string; n: number; of: number; note: string };
+export type PrintData = {
+  ok: true;
+  event: { id: string; codename: string; zip: string; theme: string };
+  /** Only invites nobody has used yet: a sheet is for handing out. */
+  invites: PrintInvite[];
+};
+
+/**
+ * What a person may print. A promoter sees only their own unused invites; the coordinator and admins see
+ * everyone's. With `batch`, just that run (numbered "n of N" as it was originally made, even if some are used).
+ */
+export function printData(actor: User, eventId: string, batch?: string): PrintData | Fail {
+  const event = db.prepare("SELECT id, coordinator_id, codename, zip, theme FROM events WHERE id = ?").get(eventId) as
+    | { id: string; coordinator_id: number; codename: string; zip: string; theme: string }
+    | undefined;
+  if (!event) return fail(404, "No such event.");
+  const manages = canManageEvent(actor, event);
+  if (!manages && !(actor.role === "promoter" && quotaFor(eventId, actor.id).quota > 0)) return fail(403, "You can't print invites for this event.");
+
+  const rows = db
+    .prepare(
+      `SELECT code, note, batch, created_by, redeemed_by FROM invites
+       WHERE event_id = ? ${batch ? "AND batch = ?" : ""} ORDER BY created_at, rowid`,
+    )
+    .all(...(batch ? [eventId, batch] : [eventId])) as { code: string; note: string; batch: string | null; created_by: number; redeemed_by: number | null }[];
+
+  const mine = rows.filter((r) => manages || r.created_by === actor.id);
+  // Number within each run so a reprint keeps its original "n of N".
+  const sizes = new Map<string, number>(), seen = new Map<string, number>();
+  for (const r of mine) sizes.set(r.batch ?? "-", (sizes.get(r.batch ?? "-") ?? 0) + 1);
+  const numbered = mine.map((r) => {
+    const key = r.batch ?? "-";
+    const n = (seen.get(key) ?? 0) + 1;
+    seen.set(key, n);
+    return { ...r, n, of: sizes.get(key)! };
+  });
+  const invites = numbered.filter((r) => r.redeemed_by === null).map(({ code, n, of, note }) => ({ code, n, of, note }));
+  return { ok: true, event: { id: event.id, codename: event.codename, zip: event.zip, theme: event.theme }, invites };
 }

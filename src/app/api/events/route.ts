@@ -4,6 +4,7 @@ import { z } from "zod";
 import { apiUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { MAX_SPOTS } from "@/lib/limits";
+import { isThemeValue } from "@/lib/themes";
 import { sealDetails } from "@/lib/seal";
 
 const Spot = z
@@ -29,6 +30,7 @@ const Body = z
       notes: z.string().max(1000),
     }),
     threshold: z.number().int().min(1),
+    theme: z.string().refine(isThemeValue, "That isn't a theme.").default("default"),
     spots: z.array(Spot).min(1).max(MAX_SPOTS),
   })
   .refine((b) => b.threshold <= b.spots.length, { message: "Threshold can't exceed the number of spots." });
@@ -41,19 +43,20 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input." }, { status: 400 });
   }
-  const { codename, zip, details, threshold, spots } = parsed.data;
+  const { codename, zip, details, threshold, spots, theme } = parsed.data;
 
   const { blob, shares } = await sealDetails(details, spots.length, threshold);
   const id = randomBytes(5).toString("base64url");
 
   db.transaction(() => {
-    db.prepare("INSERT INTO events (id, coordinator_id, codename, zip, blob, threshold) VALUES (?, ?, ?, ?, ?, ?)").run(
+    db.prepare("INSERT INTO events (id, coordinator_id, codename, zip, blob, threshold, theme) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
       id,
       actor.id,
       codename,
       zip,
       blob,
       threshold,
+      theme,
     );
     const insert = db.prepare(
       "INSERT INTO event_spots (event_id, idx, label, clue, lat, lon, osm_ref) VALUES (?, ?, ?, ?, ?, ?, ?)",

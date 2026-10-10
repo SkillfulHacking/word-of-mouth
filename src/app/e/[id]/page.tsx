@@ -1,13 +1,15 @@
 import { notFound } from "next/navigation";
 import { OsmCredit } from "@/components/osm-credit";
+import { ThemeStyle } from "@/components/theme-style";
 import { db } from "@/lib/db";
+import { coverId } from "@/lib/event-images";
 
 export const dynamic = "force-dynamic";
 
 export default async function HuntPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const event = db.prepare("SELECT codename, zip, threshold FROM events WHERE id = ?").get(id) as
-    | { codename: string; zip: string; threshold: number }
+  const event = db.prepare("SELECT codename, zip, threshold, theme FROM events WHERE id = ?").get(id) as
+    | { codename: string; zip: string; threshold: number; theme: string }
     | undefined;
   if (!event) notFound();
   const spots = db.prepare("SELECT idx, clue FROM event_spots WHERE event_id = ? ORDER BY idx").all(id) as {
@@ -15,10 +17,16 @@ export default async function HuntPage({ params }: { params: Promise<{ id: strin
     clue: string;
   }[];
 
+  const cover = coverId(id);
   const fromMap = !!db.prepare("SELECT 1 FROM event_spots WHERE event_id = ? AND osm_ref IS NOT NULL").get(id);
 
   return (
     <>
+      <ThemeStyle theme={event.theme} />
+      {cover && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="cover" src={`/api/images/${cover}?v=web`} alt="" />
+      )}
       <h1>{event.codename}</h1>
       <p className="muted">Somewhere in ZIP code {event.zip}</p>
       <p>

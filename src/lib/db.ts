@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS events (
   zip TEXT NOT NULL,
   blob TEXT NOT NULL,
   threshold INTEGER NOT NULL,
+  theme TEXT NOT NULL DEFAULT 'default',
   created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 CREATE TABLE IF NOT EXISTS event_spots (
@@ -56,7 +57,8 @@ CREATE TABLE IF NOT EXISTS invites (
   note TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL DEFAULT (unixepoch()),
   redeemed_by INTEGER REFERENCES users(id),
-  redeemed_at INTEGER
+  redeemed_at INTEGER,
+  batch TEXT
 );
 -- A ticket is a redeemed invite. It proves the right to attend; it does not reveal where.
 CREATE TABLE IF NOT EXISTS tickets (
@@ -98,6 +100,22 @@ CREATE TABLE IF NOT EXISTS checkins (
   at INTEGER NOT NULL DEFAULT (unixepoch()),
   PRIMARY KEY (event_id, nullifier)
 );
+-- Pictures made by ComfyUI for an event. Files live on disk next to the database; only the event's
+-- selected picture is public. The prompt is kept so a coordinator can see what made a picture.
+CREATE TABLE IF NOT EXISTS event_images (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  prompt TEXT NOT NULL,
+  negative TEXT NOT NULL DEFAULT '',
+  width INTEGER NOT NULL,
+  height INTEGER NOT NULL,
+  seed INTEGER NOT NULL,
+  checkpoint TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running','done','failed')),
+  error TEXT,
+  selected INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
 -- Map lookups are cached so re-planning doesn't hammer the shared Overpass servers.
 CREATE TABLE IF NOT EXISTS osm_cache (
   key TEXT PRIMARY KEY,
@@ -123,6 +141,19 @@ function bootstrapAdmin(d: Database.Database): void {
   console.log(`Created the first admin "${username}".`);
 }
 
+/** Add a column to a table made by an earlier version of the app. CREATE TABLE IF NOT EXISTS won't. */
+function ensureColumn(d: Database.Database, table: string, column: string, ddl: string): void {
+  const have = (d.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some((c) => c.name === column);
+  if (!have) d.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+}
+
+function migrate(d: Database.Database): void {
+  ensureColumn(d, "events", "theme", "TEXT NOT NULL DEFAULT 'default'");
+  ensureColumn(d, "invites", "batch", "TEXT");
+  // A job that was mid-flight when the server stopped will never finish.
+  d.prepare("UPDATE event_images SET status = 'failed', error = 'Interrupted by a restart.' WHERE status = 'running'").run();
+}
+
 function open(): Database.Database {
   const file = process.env.DATABASE_FILE ?? path.join(process.cwd(), "data", "wom.db");
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -130,6 +161,7 @@ function open(): Database.Database {
   d.pragma("journal_mode = WAL");
   d.pragma("foreign_keys = ON");
   d.exec(SCHEMA);
+  migrate(d);
   bootstrapAdmin(d);
   return d;
 }
