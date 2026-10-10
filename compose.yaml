@@ -1,0 +1,25 @@
+# Word of Mouth: self-hosted. Your data lives in the `wom-data` volume.
+#   WOM_ADMIN_PASSWORD='something long' docker compose up --build
+# The admin is created on the first start only (when the database has no users yet).
+services:
+  app:
+    build: .
+    image: word-of-mouth:local
+    ports:
+      - "${WOM_PORT:-3000}:3000"
+    environment:
+      # Your Ollama server. host.docker.internal reaches Ollama running on this machine; use a LAN address otherwise.
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b-instruct-2507-q4_K_M}
+      WOM_ADMIN_USER: ${WOM_ADMIN_USER:-admin}
+      WOM_ADMIN_PASSWORD: ${WOM_ADMIN_PASSWORD:-}
+      # Set to true once you serve it over HTTPS (needed for NFC writing from a phone).
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - wom-data:/data
+    restart: unless-stopped
+
+volumes:
+  wom-data:

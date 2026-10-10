@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+data
+*.db
+*.db-*
+.env*
+!.env.example
+docs
+public/zk
+Dockerfile
+compose.yaml
+.dockerignore

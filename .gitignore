@@ -1,0 +1,13 @@
+node_modules
+.next
+data
+*.db
+*.db-*
+.env*
+!.env.example
+next-env.d.ts
+*.tsbuildinfo
+public/zk
+
+# unfinished write-up draft: stays local until published
+docs/devto-post.md
