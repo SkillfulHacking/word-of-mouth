@@ -43,6 +43,16 @@ export default function PrintPage() {
     );
   }, [id]);
 
+  /** The same link the QR code holds, for opening a code on this computer (handy for demos and for sending one to someone). */
+  async function copyLink(card: Card) {
+    try {
+      await navigator.clipboard.writeText(card.url);
+      setStatus(`Copied the link for "${card.title}".`);
+    } catch {
+      setStatus(`Couldn't copy automatically. The link is: ${card.url}`);
+    }
+  }
+
   async function writeNfc(card: Card) {
     const NDEF = (window as unknown as { NDEFReader?: NdefCtor }).NDEFReader;
     if (!NDEF) return;
@@ -93,11 +103,16 @@ export default function PrintPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={c.qr} alt={`QR code for ${c.title}`} />
             <div className="place">{c.place}</div>
-            {nfcOk && (
-              <button className="secondary noprint" style={{ marginTop: 8 }} onClick={() => writeNfc(c)}>
-                Write to NFC tag
+            <div className="noprint row" style={{ marginTop: 8 }}>
+              <button type="button" className="secondary" onClick={() => copyLink(c)}>
+                Copy link
               </button>
-            )}
+              {nfcOk && (
+                <button type="button" className="secondary" onClick={() => writeNfc(c)}>
+                  Write to NFC tag
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>

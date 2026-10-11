@@ -84,6 +84,7 @@ WOM_ADMIN_PASSWORD='a long password' pnpm dev   # creates the first admin on fir
 | `COMFYUI_CHECKPOINT` | a fast one if installed | Checkpoint file name to use. A "lightning" or "turbo" model is chosen by default, which suits a GPU shared with a language model |
 | `PUBLIC_BASE_URL` | the address you open the app at | What printed invite QR codes point at. It must be reachable from guests' phones; the print page warns about `localhost` and private addresses |
 | `DATA_DIR` | next to the database | Where pictures are stored |
+| `OLLAMA_KEEP_ALIVE` | `30m` | How long Ollama keeps the model loaded after each request (`3h`, `-1` for always). Ollama's own default is 5 minutes, after which the next use is a cold start of about a minute |
 | `OVERPASS_URL` | three public mirrors | Comma-separated Overpass servers. Point at your own for fully offline planning |
 | `DATABASE_FILE` | `data/wom.db` (`/data/wom.db` in Docker) | SQLite file |
 | `WOM_ADMIN_USER`, `WOM_ADMIN_PASSWORD` | `admin`, unset | Creates the first admin when the database has no users |
