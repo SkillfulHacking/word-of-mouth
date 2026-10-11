@@ -30,7 +30,7 @@ Everything runs on your own machine: a self-hosted web app, a local open-weight 
 | **Hidden codes** | The key is split with Shamir's secret sharing: any *k* of *n* codes (1 to 5) open the event. Each code is a printable QR or an NFC tag. The share rides in the URL `#fragment`, which browsers never send to a server. |
 | **Roles** | `admin`, `coordinator`, `promoter`, `attendee`. Admins can do everything; a coordinator manages only their own events. |
 | **Word of mouth** | A coordinator gives promoters a quota of single-use invite links. An invite is also the sign-up page, so accepting one creates the account and the ticket together. |
-| **AI spot planner** | A local model picks real places from OpenStreetMap for the codes and writes themed clue lines. It never invents a place: it chooses from candidate IDs, and plain code checks distances, the walking limit, leaks and made-up scenery. Any spot can also be set by hand. |
+| **AI spot planner** | A local model picks real places from OpenStreetMap for the codes and writes themed clue lines. It never invents a place: it chooses from candidate IDs, and plain code checks distances, the walking limit, leaks and made-up scenery. Any spot can also be set by clicking the map or typing coordinates. |
 | **Themes** | 25 built-in color themes (the app's default plus 24 from Figma's palettes) and custom colors, applied to the invite, hunt, unlock and ticket pages and to printed invites. Every theme is adjusted so text, links and buttons meet WCAG 4.5:1 contrast, and the tests check all of them. |
 | **Bulk print invites** | A promoter picks a number and gets that many unique single-use invite cards as a print sheet: 1, 2, 4 or 8 per sheet on Letter or A4, vector QR codes at the highest error correction, cut guides, and an ink-saver mode. Reprints skip invites already used. |
 | **Event pictures** | Your local model writes an image prompt from a few words of mood, and ComfyUI paints candidates. The one you choose appears on the public pages and on printed cards; the others stay private. Prompts and workflows that ComfyUI embeds in its PNGs are stripped before anything is stored. |
@@ -86,6 +86,8 @@ WOM_ADMIN_PASSWORD='a long password' pnpm dev   # creates the first admin on fir
 | `DATA_DIR` | next to the database | Where pictures are stored |
 | `OLLAMA_KEEP_ALIVE` | `30m` | How long Ollama keeps the model loaded after each request (`3h`, `-1` for always). Ollama's own default is 5 minutes, after which the next use is a cold start of about a minute |
 | `OVERPASS_URL` | three public mirrors | Comma-separated Overpass servers. Point at your own for fully offline planning |
+| `MAP_TILE_URL` | OpenStreetMap's public tiles | Tile server for the map on the new-event form, as a template like `https://tiles.example.org/{z}/{x}/{y}.png`. The tile server sees which area you look at, so point this at your own for privacy |
+| `MAP_CENTER` | the United States | Where the map first opens, as `lat,lon` or `lat,lon,zoom` (for example `43.07,-76.17,12`) |
 | `DATABASE_FILE` | `data/wom.db` (`/data/wom.db` in Docker) | SQLite file |
 | `WOM_ADMIN_USER`, `WOM_ADMIN_PASSWORD` | `admin`, unset | Creates the first admin when the database has no users |
 | `COOKIE_SECURE` | `false` | Set `true` behind HTTPS |
@@ -123,3 +125,5 @@ The app doesn't ship any model. You supply an Ollama language model and ComfyUI 
 ### Map data
 
 Places come from [OpenStreetMap](https://www.openstreetmap.org/copyright). © OpenStreetMap contributors, available under the [Open Database License](https://opendatacommons.org/licenses/odbl/). The app shows that credit wherever suggested places appear. Lookups are cached in your own SQLite file (`osm_cache`) and are not republished.
+
+**Who sees the start point.** To suggest places, the server sends the start latitude and longitude you enter, plus the search radius, to a public Overpass server (the default is three community-run mirrors). Those servers are run by third parties, so their terms of service and usage policies apply to those requests, and they can see the request and the server's IP address. For more privacy, run your own Overpass instance and set `OVERPASS_URL`, or skip the planner and place the points yourself on the map or by coordinates; nothing is sent to Overpass then. The map on the new-event form loads picture tiles from tile.openstreetmap.org by default, so that server can see which area the coordinator is looking at (OpenStreetMap's tile usage policy applies; set `MAP_TILE_URL` to use your own). Opening a "view on map" link sends that spot to openstreetmap.org, under its terms.

@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { MapPicker } from "@/components/map-picker";
 import { OsmCredit } from "@/components/osm-credit";
 import { ThemePicker } from "@/components/theme-picker";
+import { parseCoords } from "@/lib/map-input";
 import { MAX_SPOTS } from "@/lib/limits";
 
 // lat/lon are strings while editing so a half-typed number doesn't fight the user.
@@ -38,7 +40,7 @@ const DEMO = {
   theme: "spooky Halloween costume party",
 };
 
-export function NewEventForm() {
+export function NewEventForm({ tileUrl, fallbackCenter }: { tileUrl: string; fallbackCenter: { lat: number; lon: number; zoom: number } }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [spots, setSpots] = useState<Spot[]>([blank(), blank(), blank()]);
@@ -56,6 +58,7 @@ export function NewEventForm() {
   const [planning, setPlanning] = useState(false);
   const [planError, setPlanError] = useState("");
   const [plan, setPlan] = useState<PlanResult | null>(null);
+  const [fitKey, setFitKey] = useState(0); // bumped to zoom the map to the suggested spots
 
   const setSpot = (i: number, patch: Partial<Spot>) =>
     setSpots((all) => all.map((s, j) => (j === i ? { ...s, ...patch } : s)));
@@ -124,6 +127,7 @@ export function NewEventForm() {
         osmRef: s.osmRef,
       })),
     );
+    setFitKey((k) => k + 1);
   }
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -132,8 +136,8 @@ export function NewEventForm() {
     const payload = [];
     for (const [i, s] of spots.entries()) {
       const has = s.lat.trim() !== "" || s.lon.trim() !== "";
-      if (has && (Number.isNaN(Number(s.lat)) || Number.isNaN(Number(s.lon)) || !s.lat.trim() || !s.lon.trim())) {
-        return setError(`Spot ${i + 1}: enter both latitude and longitude as numbers, or leave both empty.`);
+      if (has && !parseCoords(s.lat, s.lon)) {
+        return setError(`Spot ${i + 1}: enter both latitude (-90 to 90) and longitude (-180 to 180) as numbers, or leave both empty.`);
       }
       payload.push({
         label: s.label,
@@ -174,9 +178,7 @@ export function NewEventForm() {
     router.push(`/events/${body.id}/print`);
   }
 
-  const latNum = Number(lat);
-  const lonNum = Number(lon);
-  const canPlan = lat.trim() !== "" && lon.trim() !== "" && !Number.isNaN(latNum) && !Number.isNaN(lonNum);
+  const canPlan = parseCoords(lat, lon) !== null;
 
   return (
     <form onSubmit={submit} ref={formRef}>
@@ -236,11 +238,34 @@ export function NewEventForm() {
       </div>
 
       <div className="card">
+        <h2 style={{ marginTop: 0 }}>Map</h2>
+        <p className="muted">
+          Pick what to place, then click the map, or type coordinates in the fields below. Both work, and they stay in
+          sync. Pins are optional and stay private to coordinators and admins.
+        </p>
+        <MapPicker
+          tileUrl={tileUrl}
+          fallbackCenter={fallbackCenter}
+          start={{ lat, lon }}
+          spots={spots}
+          radiusM={radiusM}
+          fitKey={fitKey}
+          onStart={(a, b) => (setLat(a), setLon(b))}
+          onSpot={(i, a, b) => setCoord(i, { lat: a, lon: b })}
+        />
+      </div>
+
+      <div className="card">
         <h2 style={{ marginTop: 0 }}>Plan the walk with AI (optional)</h2>
         <p className="muted">
-          Pick where the hunt starts. Your local model chooses real places from OpenStreetMap and writes themed lines;
-          the app adds the facts and checks the walk length. It runs on your own Ollama server. Public map data is thin
-          indoors, so you can set any spot by hand below.
+          Set where the hunt starts by clicking the map above (Start point) or by typing coordinates below. Your local
+          model then chooses real places from OpenStreetMap and writes themed lines; the app adds the facts and checks
+          the walk length. It runs on your own Ollama server.
+        </p>
+        <p className="muted">
+          Map lookups send the start point to a public Overpass server, and that provider&apos;s terms apply. To keep it
+          private, host your own and set <code>OVERPASS_URL</code>, or place the spots yourself on the map or by
+          coordinates.
         </p>
         <div className="row">
           <div>
@@ -348,7 +373,8 @@ export function NewEventForm() {
           </div>
         ))}
         <p className="muted">
-          Coordinates are optional and stay private to coordinators and admins. Hunters only ever see the clue.
+          Set each spot with a pin on the map above or by typing coordinates. Coordinates are optional and stay private to
+          coordinators and admins. Hunters only ever see the clue.
         </p>
       </div>
 

@@ -16,6 +16,9 @@ services:
       # Your ComfyUI, for event pictures.
       COMFYUI_URL: ${COMFYUI_URL:-http://host.docker.internal:8188}
       COMFYUI_CHECKPOINT: ${COMFYUI_CHECKPOINT:-}
+      # Map on the new-event form (optional). Leave empty to use OpenStreetMap's public tiles.
+      MAP_TILE_URL: ${MAP_TILE_URL:-}
+      MAP_CENTER: ${MAP_CENTER:-}
       # The address guests will use, so printed invites point at the right place.
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
       WOM_ADMIN_USER: ${WOM_ADMIN_USER:-admin}

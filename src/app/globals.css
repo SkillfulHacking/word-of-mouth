@@ -136,3 +136,10 @@ header.top button { padding: 6px 12px; }
 
 /* The event's chosen picture, on public pages. */
 .cover { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; margin: 0 0 16px; background: var(--line); }
+
+/* Map picker (Leaflet). The pins are numbered circles so there are no image files to bundle. */
+.wom-map { height: 380px; width: 100%; border: 1px solid var(--line); border-radius: 8px; z-index: 0; }
+.wom-pin { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 700 14px/1 system-ui, sans-serif; color: #fff; border: 2px solid #fff; box-shadow: 0 1px 5px #0008; }
+.wom-pin.spot { background: #c2570c; }
+.wom-pin.start { background: #1f5fbf; border-radius: 6px; }
+.wom-pin.active { outline: 3px solid #ffd23f; outline-offset: 1px; }
