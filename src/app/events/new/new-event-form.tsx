@@ -350,7 +350,7 @@ export function NewEventForm({ tileUrl, fallbackCenter }: { tileUrl: string; fal
             <label htmlFor={`label-${i}`}>Where it goes (for you only, printed on the cut-off strip)</label>
             <input id={`label-${i}`} value={s.label} onChange={(e) => setSpot(i, { label: e.target.value })} required />
             <label htmlFor={`clue-${i}`}>Clue for hunters (public)</label>
-            <input id={`clue-${i}`} value={s.clue} onChange={(e) => setSpot(i, { clue: e.target.value })} required />
+            <textarea id={`clue-${i}`} rows={2} value={s.clue} onChange={(e) => setSpot(i, { clue: e.target.value.replace(/\s*\n\s*/g, " ") })} required />
             <div className="row">
               <div>
                 <label htmlFor={`lat-${i}`}>Latitude</label>

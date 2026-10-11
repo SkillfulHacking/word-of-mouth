@@ -34,7 +34,10 @@ const inviteCode = (await (await admin.request.post(`${base}/api/events/${id}/in
 await admin.goto(`${base}/events/${id}`);
 await admin.waitForSelector("text=Connected to ComfyUI", { timeout: 20_000 });
 const banner = await admin.locator("main").innerText();
-log(/Connected to ComfyUI on NVIDIA GeForce RTX 3060/.test(banner), "the studio reports the real GPU and model");
+log(/Connected to ComfyUI on NVIDIA GeForce RTX 3060/.test(banner), "the studio reports the real GPU");
+await admin.waitForSelector("#checkpoint");
+const models = await admin.locator("#checkpoint option").allInnerTexts();
+log(models.length >= 1 && models.some((m) => /default/.test(m)), `the studio lists the models installed on ComfyUI (${models.length}) and marks the default`);
 
 await admin.fill("#idea", "a spooky but friendly costume gathering, candlelight, carved pumpkins");
 await admin.click("button:has-text('Write the prompt')");

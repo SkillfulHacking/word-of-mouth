@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { PNG } from "pngjs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { nearestColorName } from "./color";
-import { buildWorkflow, comfyStatus, ComfyError, pickCheckpoint, presetFor, runWorkflow } from "./comfy";
+import { buildWorkflow, comfyStatus, ComfyError, pickCheckpoint, presetFor, resolveCheckpoint, runWorkflow } from "./comfy";
 import { pngChunks, stripPngMetadata } from "./png";
 
 // ---- a PNG shaped like ComfyUI's: pixels plus text chunks holding the prompt and the workflow
@@ -174,5 +174,18 @@ describe("runWorkflow", () => {
   });
   it("explains an unreachable server", async () => {
     await expect(runWorkflow(wf(), { base: "http://127.0.0.1:1", pollMs: 5 })).rejects.toThrow(/Couldn't reach ComfyUI/);
+  });
+});
+
+describe("resolveCheckpoint", () => {
+  const st = { checkpoints: ["a.safetensors", "b.safetensors"], checkpoint: "a.safetensors" };
+  it("defaults when nothing is picked", () => {
+    expect(resolveCheckpoint(undefined, st)).toBe("a.safetensors");
+    expect(resolveCheckpoint("", st)).toBe("a.safetensors");
+  });
+  it("accepts an installed model and refuses anything else", () => {
+    expect(resolveCheckpoint("b.safetensors", st)).toBe("b.safetensors");
+    expect(resolveCheckpoint("../../etc/passwd", st)).toBeNull();
+    expect(resolveCheckpoint("c.safetensors", st)).toBeNull();
   });
 });

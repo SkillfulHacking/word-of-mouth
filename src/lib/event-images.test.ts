@@ -107,6 +107,21 @@ describe("making pictures", () => {
     expect(await start(e, { prompt: "poster text" })).toMatchObject({ ok: false, status: 400 }); // nothing left after cleaning
     expect(await imgs.startImages(owner, "no-such-event", { prompt: "a lantern in mist", aspect: "landscape", count: 1 }, okDeps())).toMatchObject({ ok: false, status: 404 });
   });
+  it("uses the model the coordinator picked, and refuses one ComfyUI doesn't have", async () => {
+    const e = mkEvent(owner);
+    const seen: string[] = [];
+    const deps: import("./event-images").Deps = {
+      status: async () => ({ ok: true, version: "1", device: "gpu", vramGb: 12, checkpoints: ["fast_lightning.safetensors", "big_xl.safetensors"], checkpoint: "fast_lightning.safetensors", fast: true }),
+      run: async (wf) => { seen.push((wf["1"] as { inputs: { ckpt_name: string } }).inputs.ckpt_name); return comfyPng(); },
+    };
+    expect(await start(e, { checkpoint: "nope.safetensors" } as never, owner, deps)).toMatchObject({ ok: false, status: 400 });
+    expect(await start(e, { checkpoint: "big_xl.safetensors" } as never, owner, deps)).toMatchObject({ ok: true });
+    expect(await start(e, {}, owner, deps)).toMatchObject({ ok: true }); // no pick: the default
+    await imgs.idle();
+    expect(seen).toEqual(["big_xl.safetensors", "fast_lightning.safetensors"]);
+    const rows = (imgs.listImages(owner, e) as { images: { checkpoint: string }[] }).images.map((i) => i.checkpoint).sort();
+    expect(rows).toEqual(["big_xl.safetensors", "fast_lightning.safetensors"]);
+  });
   it("makes finished pictures with no prompt inside the file, and a smaller web copy", async () => {
     const e = mkEvent(owner);
     const r = (await start(e, { count: 2 })) as { ok: true; ids: string[] };

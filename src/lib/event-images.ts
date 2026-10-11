@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
-import { ASPECTS, buildWorkflow, comfyStatus, ComfyError, DEFAULT_NEGATIVE, pickCheckpoint, runWorkflow, type Aspect, type ComfyStatus } from "./comfy";
+import { ASPECTS, buildWorkflow, comfyStatus, ComfyError, DEFAULT_NEGATIVE, pickCheckpoint, resolveCheckpoint, runWorkflow, type Aspect, type ComfyStatus } from "./comfy";
 import { db, type User } from "./db";
 import { sanitizeImagePrompt } from "./image-prompt";
 import { canManageEvent, type Fail } from "./invites";
@@ -74,7 +74,7 @@ async function makeOne(id: string, checkpoint: string, deps: Deps): Promise<void
   }
 }
 
-export type StartInput = { prompt: string; aspect: Aspect; count: number; negative?: string };
+export type StartInput = { prompt: string; aspect: Aspect; count: number; negative?: string; checkpoint?: string };
 
 /**
  * Queue pictures for an event. Returns at once; the pictures are made one at a time in the background
@@ -93,7 +93,8 @@ export async function startImages(actor: User, eventId: string, input: StartInpu
 
   const status = await deps.status();
   if (!status.ok) return fail(503, status.error);
-  const checkpoint = status.checkpoint ?? pickCheckpoint(status.checkpoints);
+  const checkpoint = resolveCheckpoint(input.checkpoint, { checkpoints: status.checkpoints, checkpoint: status.checkpoint ?? pickCheckpoint(status.checkpoints) });
+  if (!checkpoint) return fail(400, "That model isn't installed on your ComfyUI. Pick one from the list.");
 
   const { width, height } = ASPECTS[input.aspect];
   const negative = (input.negative?.trim() || DEFAULT_NEGATIVE).slice(0, 400);

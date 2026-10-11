@@ -18,6 +18,7 @@ const Body = z.object({
   aspect: z.enum(Object.keys(ASPECTS) as [keyof typeof ASPECTS, ...(keyof typeof ASPECTS)[]]),
   count: z.number().int().min(1).max(MAX_PER_REQUEST),
   negative: z.string().max(400).optional(),
+  checkpoint: z.string().max(200).optional(),
 });
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {

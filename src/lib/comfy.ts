@@ -32,6 +32,12 @@ export function pickCheckpoint(available: string[], preferred = COMFY_CHECKPOINT
   return available.find((c) => /lightning|turbo|lcm|hyper|schnell/i.test(c)) ?? available[0];
 }
 
+/** The coordinator's pick, if it is a model this ComfyUI really has; otherwise null. No pick means the default. */
+export function resolveCheckpoint(requested: string | undefined, status: { checkpoints: string[]; checkpoint: string }): string | null {
+  if (requested === undefined || requested === "") return status.checkpoint;
+  return status.checkpoints.includes(requested) ? requested : null;
+}
+
 export type WorkflowInput = { checkpoint: string; prompt: string; negative: string; width: number; height: number; seed: number; preset?: Preset };
 
 /** A plain text-to-image graph in ComfyUI's API format. Node ids are strings; links are [nodeId, outputIndex]. */

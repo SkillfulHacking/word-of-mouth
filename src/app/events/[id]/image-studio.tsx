@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 
 type Img = { id: string; prompt: string; width: number; height: number; status: "running" | "done" | "failed"; error: string | null; selected: number };
-type Status = { ok: true; device: string; vramGb: number | null; checkpoint: string; fast: boolean } | { ok: false; error: string };
+type Status = { ok: true; device: string; vramGb: number | null; checkpoint: string; checkpoints: string[]; fast: boolean } | { ok: false; error: string };
+
+// Same rule the server uses to pick sampler settings: distilled models need only a few steps.
+const isFast = (name: string) => /lightning|hyper|turbo|lcm|schnell/i.test(name);
 
 const ASPECTS = [
   ["landscape", "Landscape banner (wide)"],
@@ -22,6 +25,7 @@ export function ImageStudio({ eventId }: { eventId: string }) {
   const [prompt, setPrompt] = useState("");
   const [aspect, setAspect] = useState<(typeof ASPECTS)[number][0]>("landscape");
   const [count, setCount] = useState(2);
+  const [checkpoint, setCheckpoint] = useState(""); // empty = the server's default
   const [writing, setWriting] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
@@ -56,7 +60,7 @@ export function ImageStudio({ eventId }: { eventId: string }) {
   async function generate() {
     setStarting(true);
     setError("");
-    const res = await fetch(`/api/events/${eventId}/images`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt, aspect, count }) });
+    const res = await fetch(`/api/events/${eventId}/images`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt, aspect, count, ...(checkpoint ? { checkpoint } : {}) }) });
     if (!res.ok) setError(await errorOf(res, "Couldn't start."));
     await load();
     setStarting(false);
@@ -76,7 +80,7 @@ export function ImageStudio({ eventId }: { eventId: string }) {
       {status === null && <p className="muted">Checking ComfyUI…</p>}
       {status?.ok && (
         <p className="muted" style={{ marginTop: 0 }}>
-          Connected to ComfyUI on <strong>{status.device}</strong>{status.vramGb ? ` (${status.vramGb} GB)` : ""}. Model: {status.checkpoint}{status.fast ? " (fast)" : ""}.
+          Connected to ComfyUI on <strong>{status.device}</strong>{status.vramGb ? ` (${status.vramGb} GB)` : ""}.
         </p>
       )}
       {status && !status.ok && (
@@ -102,6 +106,24 @@ export function ImageStudio({ eventId }: { eventId: string }) {
 
       <label htmlFor="prompt">Prompt (edit it however you like)</label>
       <textarea id="prompt" rows={4} value={prompt} onChange={(e) => setPrompt(e.target.value)} maxLength={800} placeholder="glowing carved pumpkins on a dark candlelit table, drifting mist, purple and orange lighting, digital illustration, wide scene" />
+
+      {status?.ok && status.checkpoints.length > 0 && (
+        <>
+          <label htmlFor="checkpoint">Model on your ComfyUI</label>
+          <select id="checkpoint" value={checkpoint || status.checkpoint} onChange={(e) => setCheckpoint(e.target.value)}>
+            {status.checkpoints.map((c) => (
+              <option key={c} value={c}>
+                {c}
+                {isFast(c) ? " (fast)" : " (slower, more steps)"}
+                {c === status.checkpoint ? " - default" : ""}
+              </option>
+            ))}
+          </select>
+          <p className="muted" style={{ marginTop: 4, fontSize: "0.85rem" }}>
+            Read from ComfyUI just now. Picture sizes are set for SDXL-style models. To change the default, set <code>COMFYUI_CHECKPOINT</code>.
+          </p>
+        </>
+      )}
 
       <div className="row">
         <div>

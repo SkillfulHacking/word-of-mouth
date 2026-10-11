@@ -33,7 +33,7 @@ Everything runs on your own machine: a self-hosted web app, a local open-weight 
 | **AI spot planner** | A local model picks real places from OpenStreetMap for the codes and writes themed clue lines. It never invents a place: it chooses from candidate IDs, and plain code checks distances, the walking limit, leaks and made-up scenery. Any spot can also be set by clicking the map or typing coordinates. |
 | **Themes** | 25 built-in color themes (the app's default plus 24 from Figma's palettes) and custom colors, applied to the invite, hunt, unlock and ticket pages and to printed invites. Every theme is adjusted so text, links and buttons meet WCAG 4.5:1 contrast, and the tests check all of them. |
 | **Bulk print invites** | A promoter picks a number and gets that many unique single-use invite cards as a print sheet: 1, 2, 4 or 8 per sheet on Letter or A4, vector QR codes at the highest error correction, cut guides, and an ink-saver mode. Reprints skip invites already used. |
-| **Event pictures** | Your local model writes an image prompt from a few words of mood, and ComfyUI paints candidates. The one you choose appears on the public pages and on printed cards; the others stay private. Prompts and workflows that ComfyUI embeds in its PNGs are stripped before anything is stored. |
+| **Event pictures** | Your local model writes an image prompt from a few words of mood, and ComfyUI paints candidates (the studio reads the GPU and the installed models from your ComfyUI, and you can pick the model). The one you choose appears on the public pages and on printed cards; the others stay private. Prompts and workflows that ComfyUI embeds in its PNGs are stripped before anything is stored. |
 | **ZK door check-in** | A ticket holder's phone makes a private pass. At the door the phone proves "I'm on the guest list" for a one-time code, without the server learning which guest it was. Reusing a pass is refused. |
 
 ## Run it with Docker
@@ -81,7 +81,7 @@ WOM_ADMIN_PASSWORD='a long password' pnpm dev   # creates the first admin on fir
 | `OLLAMA_URL` | `http://localhost:11434` | Your Ollama server |
 | `OLLAMA_MODEL` | `gemma3:4b` | Any model your server has; it must follow a JSON schema. `qwen3:4b-instruct-2507-q4_K_M` is also tested and works well |
 | `COMFYUI_URL` | `http://localhost:8188` | Your ComfyUI server, for event pictures |
-| `COMFYUI_CHECKPOINT` | a fast one if installed | Checkpoint file name to use. A "lightning" or "turbo" model is chosen by default, which suits a GPU shared with a language model |
+| `COMFYUI_CHECKPOINT` | a fast one if installed | The default checkpoint. A "lightning" or "turbo" model is chosen if you don't set one, which suits a GPU shared with a language model. The image studio lists every checkpoint your ComfyUI has and lets a coordinator pick one per batch |
 | `PUBLIC_BASE_URL` | the address you open the app at | What printed invite QR codes point at. It must be reachable from guests' phones; the print page warns about `localhost` and private addresses |
 | `DATA_DIR` | next to the database | Where pictures are stored |
 | `OLLAMA_KEEP_ALIVE` | `30m` | How long Ollama keeps the model loaded after each request (`3h`, `-1` for always). Ollama's own default is 5 minutes, after which the next use is a cold start of about a minute |
