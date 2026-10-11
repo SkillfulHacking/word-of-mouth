@@ -10,7 +10,7 @@ services:
     environment:
       # Your Ollama server. host.docker.internal reaches Ollama running on this machine; use a LAN address otherwise.
       OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b-instruct-2507-q4_K_M}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma3:4b}
       # Your ComfyUI, for event pictures.
       COMFYUI_URL: ${COMFYUI_URL:-http://host.docker.internal:8188}
       COMFYUI_CHECKPOINT: ${COMFYUI_CHECKPOINT:-}

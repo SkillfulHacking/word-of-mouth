@@ -47,7 +47,7 @@ Open <http://localhost:3000> and sign in as `admin`. The admin is created on the
 Point it at your Ollama and ComfyUI servers (the defaults are Ollama and ComfyUI on the same machine), and tell it the address guests will use so printed invites work:
 
 ```bash
-OLLAMA_URL=http://192.168.1.50:11434 OLLAMA_MODEL=qwen3:4b-instruct-2507-q4_K_M \
+OLLAMA_URL=http://192.168.1.50:11434 OLLAMA_MODEL=gemma3:4b \
 COMFYUI_URL=http://192.168.1.50:8188 PUBLIC_BASE_URL=https://invites.example.com \
 WOM_ADMIN_PASSWORD='a long password' docker compose up --build
 ```
@@ -79,7 +79,7 @@ WOM_ADMIN_PASSWORD='a long password' pnpm dev   # creates the first admin on fir
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `OLLAMA_URL` | `http://localhost:11434` | Your Ollama server |
-| `OLLAMA_MODEL` | `qwen3:4b-instruct-2507-q4_K_M` | Any model your server has; it must follow a JSON schema |
+| `OLLAMA_MODEL` | `gemma3:4b` | Any model your server has; it must follow a JSON schema. `qwen3:4b-instruct-2507-q4_K_M` is also tested and works well |
 | `COMFYUI_URL` | `http://localhost:8188` | Your ComfyUI server, for event pictures |
 | `COMFYUI_CHECKPOINT` | a fast one if installed | Checkpoint file name to use. A "lightning" or "turbo" model is chosen by default, which suits a GPU shared with a language model |
 | `PUBLIC_BASE_URL` | the address you open the app at | What printed invite QR codes point at. It must be reachable from guests' phones; the print page warns about `localhost` and private addresses |
@@ -103,13 +103,13 @@ WOM_ADMIN_PASSWORD='a long password' pnpm dev   # creates the first admin on fir
 
 ## Built with
 
-[Next.js](https://nextjs.org), TypeScript, SQLite ([better-sqlite3](https://github.com/WiseLibs/better-sqlite3)), [Ollama](https://ollama.com) with Qwen3 4B Instruct (Apache 2.0), [ComfyUI](https://github.com/comfyanonymous/ComfyUI) for pictures, [sharp](https://sharp.pixelplumbing.com) (Apache 2.0) for resizing, [qrcode](https://github.com/soldair/node-qrcode) for QR codes, [OpenStreetMap](https://www.openstreetmap.org) via Overpass, [Semaphore](https://semaphore.pse.dev) with [snarkjs](https://github.com/iden3/snarkjs), [shamir-secret-sharing](https://github.com/privy-io/shamir-secret-sharing), Playwright, Vitest.
+[Next.js](https://nextjs.org), TypeScript, SQLite ([better-sqlite3](https://github.com/WiseLibs/better-sqlite3)), [Ollama](https://ollama.com) with Gemma 3 4B (Gemma Terms of Use), [ComfyUI](https://github.com/comfyanonymous/ComfyUI) for pictures, [sharp](https://sharp.pixelplumbing.com) (Apache 2.0) for resizing, [qrcode](https://github.com/soldair/node-qrcode) for QR codes, [OpenStreetMap](https://www.openstreetmap.org) via Overpass, [Semaphore](https://semaphore.pse.dev) with [snarkjs](https://github.com/iden3/snarkjs), [shamir-secret-sharing](https://github.com/privy-io/shamir-secret-sharing), Playwright, Vitest.
 
 ## License
 
 Word of Mouth is free software, licensed under the **GNU General Public License v3.0 or later** (`GPL-3.0-or-later`). See [LICENSE](LICENSE).
 
-It is GPL because the zero-knowledge proofs use [snarkjs](https://github.com/iden3/snarkjs), which is GPL-3.0, and the app ships it in the Docker image and to guests' browsers. The other dependencies are MIT or Apache-2.0, both compatible with GPLv3, and so are the Semaphore circuits (MIT). Qwen3 is Apache-2.0.
+It is GPL because the zero-knowledge proofs use [snarkjs](https://github.com/iden3/snarkjs), which is GPL-3.0, and the app ships it in the Docker image and to guests' browsers. The other dependencies are MIT or Apache-2.0, both compatible with GPLv3, and so are the Semaphore circuits (MIT). Models are separate; see below.
 
 ### Color themes
 
@@ -117,7 +117,7 @@ It is GPL because the zero-knowledge proofs use [snarkjs](https://github.com/ide
 
 ### Models
 
-The app doesn't ship any model. You supply an Ollama language model (the default, Qwen3 4B Instruct, is Apache-2.0 as reported by Ollama) and ComfyUI checkpoints. Check the license of whichever image checkpoint you use before putting its pictures on printed material, since some are non-commercial.
+The app doesn't ship any model. You supply an Ollama language model and ComfyUI checkpoints. The default language model, Gemma 3 4B, is released by Google under the [Gemma Terms of Use](https://ai.google.dev/gemma/terms) (as reported by Ollama): open weights you can run and modify, but not an OSI open-source license, and with a prohibited-use policy. Qwen3 4B Instruct, which also works well here, is Apache-2.0. Check the license of whichever image checkpoint you use before putting its pictures on printed material, since some are non-commercial.
 
 ### Map data
 

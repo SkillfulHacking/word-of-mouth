@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://localhost:11434";
-export const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen3:4b-instruct-2507-q4_K_M";
+export const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "gemma3:4b";
 
 /**
  * Ask a local Ollama model for JSON matching `schema`. Ollama constrains decoding to the
